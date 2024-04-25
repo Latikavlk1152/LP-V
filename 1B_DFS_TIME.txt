@@ -1,0 +1,130 @@
+#include <iostream>
+#include <vector>
+#include <omp.h>
+#include <chrono>
+#include <cstdlib> // for rand() and srand()
+#include <ctime>   // for time()
+
+using namespace std;
+
+class Graph {
+private:
+    int V;                 // Number of vertices
+    vector<vector<int>> adj; // Adjacency list
+    vector<int> dfsPath;    // Stores the DFS traversal path
+
+public:
+    Graph(int V) : V(V), adj(V) {}
+
+    void addEdge(int v, int w) {
+        adj[v].push_back(w);
+    }
+
+    // Sequential Depth-First Search
+    void sequentialDFSUtil(int v, vector<bool> &visited) {
+        visited[v] = true;
+        dfsPath.push_back(v); // Store the visited node
+        for (int i = 0; i < adj[v].size(); ++i) {
+            int n = adj[v][i];
+            if (!visited[n]) {
+                sequentialDFSUtil(n, visited);
+            }
+        }
+    }
+
+    // Parallel Depth-First Search
+    void parallelDFSUtil(int v, vector<bool> &visited) {
+        visited[v] = true;
+        dfsPath.push_back(v); // Store the visited node
+#pragma omp parallel for
+        for (int i = 0; i < adj[v].size(); ++i) {
+            int n = adj[v][i];
+            if (!visited[n]) {
+                parallelDFSUtil(n, visited);
+            }
+        }
+    }
+
+    // Sequential Depth-First Search
+    void sequentialDFS(int startVertex) {
+        vector<bool> visited(V, false);
+        sequentialDFSUtil(startVertex, visited);
+    }
+
+    // Parallel Depth-First Search
+    void parallelDFS(int startVertex) {
+        vector<bool> visited(V, false);
+        parallelDFSUtil(startVertex, visited);
+    }
+
+    // Get the DFS traversal path
+    vector<int> getDFSPath() {
+        return dfsPath;
+    }
+
+    // Clear the DFS traversal path
+    void clearDFSPath() {
+        dfsPath.clear();
+    }
+};
+
+int main() {
+    srand(time(NULL)); // Initialize random seed
+
+//    int num_vertices = rand() % 10 + 5; // Random number of vertices (5 to 14)
+    int num_vertices;
+    std::cout<< "enter the number of vertices: ";
+    std::cin>> num_vertices;
+    int num_edges = rand() % (num_vertices * (num_vertices - 1) / 2); // Random number of edges (0 to V*(V-1)/2)
+    int source = rand() % num_vertices; // Random source node
+
+    Graph g(num_vertices);
+
+    // Generate random edges
+    for (int i = 0; i < num_edges; ++i) {
+        int u = rand() % num_vertices; // Random source vertex
+        int v = rand() % num_vertices; // Random destination vertex
+        g.addEdge(u, v);
+    }
+
+    // Measure sequential DFS time
+    auto startSeqDFS = chrono::steady_clock::now();
+    g.sequentialDFS(source);
+    auto endSeqDFS = chrono::steady_clock::now();
+    double timeSeqDFS = chrono::duration<double>(endSeqDFS - startSeqDFS).count() * 1000; // Convert to milliseconds
+
+    // Measure parallel DFS time
+    auto startParDFS = chrono::steady_clock::now();
+    g.parallelDFS(source);
+    auto endParDFS = chrono::steady_clock::now();
+    double timeParDFS = chrono::duration<double>(endParDFS - startParDFS).count() * 1000; // Convert to milliseconds
+
+    // Output DFS calculation times
+    cout << "Number of vertices: " << num_vertices << endl;
+    cout << "Number of edges: " << num_edges << endl;
+    cout << "Source node: " << source << endl;
+    cout << "Sequential DFS Time: " << timeSeqDFS << " milliseconds" << endl;
+    cout << "Parallel DFS Time: " << timeParDFS << " milliseconds" << endl;
+
+    // Get and print the DFS traversal path
+    vector<int> dfsPath = g.getDFSPath();
+    cout << "DFS Path: ";
+    for (int i = 0; i < dfsPath.size(); ++i) {
+        cout << dfsPath[i] << " ";
+    }
+    cout << endl;
+
+    // Clear the DFS traversal path for next computation
+    g.clearDFSPath();
+
+    // Output diagnostic message
+//    if (timeParDFS > timeSeqDFS) {
+//        cout << "Parallel DFS took longer than Sequential DFS." << endl;
+//    } else if (timeParDFS < timeSeqDFS) {
+//        cout << "Sequential DFS took longer than Parallel DFS." << endl;
+//    } else {
+//        cout << "Sequential and Parallel DFS took the same amount of time." << endl;
+//    }
+
+    return 0;
+}
